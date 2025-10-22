@@ -1,5 +1,5 @@
-const fetch = require("node-fetch");
-const cheerio = require("cheerio");
+import fetch from 'node-fetch';
+import * as cheerio from 'cheerio';
 
 const OUNCE_TO_GRAM = 31.1034768;
 
@@ -140,7 +140,7 @@ async function fetchTRM() {
   }
 }
 
-module.exports = async (req, res) => {
+async function handler(req, res) {
   // Enable CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -184,4 +184,6 @@ module.exports = async (req, res) => {
     console.error(err);
     res.status(500).json({ error: String(err) });
   }
-};
+}
+
+export default handler;

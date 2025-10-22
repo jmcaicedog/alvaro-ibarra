@@ -1,0 +1,13 @@
+:root{--bg:#f7f7f9;--card:#fff;--accent:#b8860b;--text:#222}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial;margin:0;background:var(--bg);color:var(--text)}
+.container{max-width:520px;margin:0 auto;padding:18px}
+h1{text-align:center;color:var(--accent);margin:8px 0 18px}
+.card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.06);margin-bottom:12px}
+.small-note{font-size:12px;color:#666;text-align:center;margin-top:8px}
+.label{font-size:13px;color:#666}
+.value{font-size:20px;font-weight:700;margin-top:6px}
+.row{display:flex;gap:8px}
+.card.small{flex:1;padding:10px}
+
+@media (max-width:420px){.value{font-size:18px}.container{padding:12px}}
