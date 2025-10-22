@@ -85,8 +85,33 @@ app.use((req, res, next) => {
   next();
 });
 
-// Servir archivos estáticos
-app.use(express.static(__dirname));
+// Servir archivos estáticos con headers MIME correctos
+app.use(
+  express.static(__dirname, {
+    setHeaders: (res, path) => {
+      if (path.endsWith(".css")) {
+        res.setHeader("Content-Type", "text/css");
+      }
+      if (path.endsWith(".js")) {
+        res.setHeader("Content-Type", "application/javascript");
+      }
+      if (path.endsWith(".html")) {
+        res.setHeader("Content-Type", "text/html");
+      }
+    },
+  })
+);
+
+// Rutas específicas para archivos estáticos
+app.get("/styles.css", (req, res) => {
+  res.setHeader("Content-Type", "text/css");
+  res.sendFile(path.join(__dirname, "styles.css"));
+});
+
+app.get("/app.js", (req, res) => {
+  res.setHeader("Content-Type", "application/javascript");
+  res.sendFile(path.join(__dirname, "app.js"));
+});
 
 // API endpoint
 app.get("/api/data", async (req, res) => {
@@ -125,8 +150,18 @@ app.get("/api/data", async (req, res) => {
   }
 });
 
+// Ruta de salud para debug
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
 // Ruta principal
 app.get("/", (req, res) => {
+  res.setHeader("Content-Type", "text/html");
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
