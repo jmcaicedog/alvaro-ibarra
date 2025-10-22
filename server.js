@@ -1,34 +1,25 @@
-const express = require("express");
-const fetch = require("node-fetch");
-const cheerio = require("cheerio");
-const path = require("path");
-const cors = require("cors");
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-const app = express();
-app.use(cors());
-app.use(express.static(path.join(__dirname, "public")));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-const OUNCE_TO_GRAM = 31.1034768; // onza troy a gramos
+const OUNCE_TO_GRAM = 31.1034768;
 
 async function fetchGoldPriceCOPPerGram() {
   try {
-    // Usar la URL específica del gramo en COP
     const url = "https://goldprice.org/gold-price-per-gram.html";
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
-      timeout: 8000,
     });
-    const html = await res.text();
-    const $ = cheerio.load(html);
+    const html = await response.text();
 
-    // Buscar el precio en COP por gramo
-    const bodyText = $("body").text();
-
-    // Buscar números que parezcan precio del gramo en COP (entre 400000-600000)
-    const priceMatches = bodyText.match(/([45][0-9]{5}[,.]?[0-9]{0,2})/g);
+    const priceMatches = html.match(/([45][0-9]{5}[,.]?[0-9]{0,2})/g);
     if (priceMatches) {
       for (const match of priceMatches) {
         const cleaned = match.replace(/[,]/g, "");
@@ -40,114 +31,34 @@ async function fetchGoldPriceCOPPerGram() {
       }
     }
 
-    // Buscar también con formato de comas
-    const bodyTextClean = bodyText.replace(/,/g, "");
-    const altMatches = bodyTextClean.match(/([45][0-9]{5}[.]?[0-9]{0,2})/g);
-    if (altMatches) {
-      for (const match of altMatches) {
-        const num = parseFloat(match);
-        if (num >= 400000 && num <= 600000) {
-          console.log(`Precio del oro por gramo encontrado (alt): COP ${num}`);
-          return num;
-        }
-      }
-    }
-
     throw new Error("No se encontró precio del gramo en COP");
   } catch (error) {
     console.warn("Error al obtener precio del oro:", error.message);
     console.log("Usando precio de referencia actual: COP 511,775.46");
-    // Valor basado en la captura de pantalla más reciente
     return 511775.46;
   }
 }
 
 async function fetchTRM() {
   try {
-    // Banco de Bogotá indicadores
     const url = "https://pbit.bancodebogota.com/Indicadores/Indicadores.aspx";
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
-      timeout: 8000,
     });
-    const html = await res.text();
-    const $ = cheerio.load(html);
+    const html = await response.text();
 
-    // Buscar TRM específicamente en la tabla
-    const bodyText = $("body").text();
-
-    // Estrategias múltiples para encontrar la TRM
-    const strategies = [
-      // Buscar patrón específico de TRM con formato colombiano: 3,876.60
-      () => {
-        const matches = bodyText.match(
-          /TRM[\s\S]{0,50}?([3-4][,\.]?[0-9]{3}[,\.]?[0-9]{2})/gi
-        );
-        if (matches) {
-          for (const match of matches) {
-            const numMatch = match.match(/([3-4][,\.]?[0-9]{3}[,\.]?[0-9]{2})/);
-            if (numMatch) {
-              // Convertir formato colombiano a número
-              let cleaned = numMatch[1].replace(/,/g, "");
-              if (cleaned.includes(".") && cleaned.split(".")[1].length === 2) {
-                const val = parseFloat(cleaned);
-                if (val >= 3000 && val <= 4500) {
-                  return val;
-                }
-              }
-            }
-          }
+    const trmMatches = html.match(/([3-4][,\.]?[0-9]{3}[,\.]?[0-9]{2})/g);
+    if (trmMatches) {
+      for (const match of trmMatches) {
+        const cleaned = match.replace(/,/g, "");
+        const val = parseFloat(cleaned);
+        if (val >= 3000 && val <= 4500) {
+          console.log(`TRM encontrada: ${val}`);
+          return val;
         }
-        return null;
-      },
-
-      // Buscar números en formato $ 3,876.60
-      () => {
-        const matches = bodyText.match(
-          /\$\s*([3-4][,]?[0-9]{3}[.]?[0-9]{0,2})/g
-        );
-        if (matches) {
-          for (const match of matches) {
-            const numStr = match.replace("$", "").trim().replace(/,/g, "");
-            const val = parseFloat(numStr);
-            if (val >= 3000 && val <= 4500) {
-              return val;
-            }
-          }
-        }
-        return null;
-      },
-
-      // Buscar en filas de la tabla cerca de "TRM"
-      () => {
-        const rows = $("tr, td").filter((i, el) => {
-          const text = $(el).text().toLowerCase();
-          return text.includes("trm") || text.includes("tasa");
-        });
-
-        for (let i = 0; i < rows.length; i++) {
-          const rowText = $(rows[i]).text();
-          const numMatch = rowText.match(/([3-4][,\.]?[0-9]{3}[,\.]?[0-9]{2})/);
-          if (numMatch) {
-            const cleaned = numMatch[1].replace(/,/g, "");
-            const val = parseFloat(cleaned);
-            if (val >= 3000 && val <= 4500) {
-              return val;
-            }
-          }
-        }
-        return null;
-      },
-    ];
-
-    for (const strategy of strategies) {
-      const result = strategy();
-      if (result) {
-        console.log(`TRM encontrada: ${result}`);
-        return result;
       }
     }
 
@@ -155,27 +66,38 @@ async function fetchTRM() {
   } catch (error) {
     console.warn("Error al obtener TRM:", error.message);
     console.log("Usando TRM de referencia: 3876.60");
-    // Valor basado en la captura de pantalla del Banco de Bogotá
     return 3876.6;
   }
 }
 
+const app = express();
+
+// Middleware CORS
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.status(200).end();
+    return;
+  }
+  next();
+});
+
+// Servir archivos estáticos
+app.use(express.static(__dirname));
+
+// API endpoint
 app.get("/api/data", async (req, res) => {
   try {
-    // Obtener precio del oro COP por gramo directamente y TRM
     const [goldCopPerGram, trm] = await Promise.all([
       fetchGoldPriceCOPPerGram(),
       fetchTRM(),
     ]);
 
-    // Calcular precio por onza multiplicando por el factor
     const goldCopPerOunce = goldCopPerGram * OUNCE_TO_GRAM;
-
-    // Dólar precio final: TRM - 100
     const dollarFinal = trm - 100;
-
-    // Calcular precio por gramo con dólar precio final
-    // Asumiendo que el precio base en USD se puede calcular dividiendo el precio COP entre TRM
     const goldUsdPerGram = goldCopPerGram / trm;
     const goldCopPerGramFinal = goldUsdPerGram * dollarFinal;
 
@@ -203,7 +125,20 @@ app.get("/api/data", async (req, res) => {
   }
 });
 
+// Ruta principal
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
+
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () =>
-  console.log(`Server listening on http://localhost:${PORT}`)
-);
+
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`🚀 Servidor local corriendo en http://localhost:${PORT}`);
+    console.log("📱 Abre la URL en tu navegador para ver la aplicación");
+    console.log("🔄 Usa Ctrl+C para detener el servidor");
+  });
+}
+
+// Export para Vercel
+export default app;
