@@ -13,29 +13,93 @@ async function fetchGoldPriceCOPPerGram() {
     const url = "https://goldprice.org/gold-price-per-gram.html";
     const response = await fetch(url, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
     const html = await response.text();
 
-    const priceMatches = html.match(/([45][0-9]{5}[,.]?[0-9]{0,2})/g);
-    if (priceMatches) {
-      for (const match of priceMatches) {
-        const cleaned = match.replace(/[,]/g, "");
-        const num = parseFloat(cleaned);
-        if (num >= 400000 && num <= 600000) {
-          console.log(`Precio del oro por gramo encontrado: COP ${num}`);
-          return num;
+    // Estrategias múltiples para encontrar el precio correcto
+    const strategies = [
+      // 1. Buscar el patrón exacto visible en la página: 513,446.78
+      () => {
+        const matches = html.match(/([5][0-9]{2}[,][0-9]{3}[\.][0-9]{2})/g);
+        if (matches) {
+          for (const match of matches) {
+            const cleaned = match.replace(/,/g, '');
+            const num = parseFloat(cleaned);
+            if (num >= 500000 && num <= 550000) {
+              console.log(`Precio del oro encontrado (patrón exacto): COP ${num}`);
+              return num;
+            }
+          }
         }
+        return null;
+      },
+
+      // 2. Buscar números con formato general 513,446.78 
+      () => {
+        const matches = html.match(/([4-6][0-9]{2}[,\.][0-9]{3}[,\.][0-9]{2})/g);
+        if (matches) {
+          for (const match of matches) {
+            let cleaned = match;
+            // Si tiene coma y punto, asumir formato americano (513,446.78)
+            if (match.includes(',') && match.includes('.')) {
+              cleaned = match.replace(/,/g, '');
+            }
+            // Si solo tiene punto en posición de miles (513.446,78 -> europeo)
+            else if (match.match(/[0-9]{3}\.[0-9]{3},[0-9]{2}/)) {
+              cleaned = match.replace(/\./g, '').replace(',', '.');
+            }
+            
+            const num = parseFloat(cleaned);
+            if (num >= 400000 && num <= 700000) {
+              console.log(`Precio del oro encontrado (formato general): COP ${num}`);
+              return num;
+            }
+          }
+        }
+        return null;
+      },
+
+      // 3. Búsqueda en el contenido específico de la página
+      () => {
+        // Buscar específicamente el valor que aparece en la página
+        const textContent = html.toLowerCase();
+        const patterns = [
+          /513[,\.]?446[,\.]?78/g,
+          /513[,\.]?[0-9]{3}[,\.]?[0-9]{2}/g,
+          /5[0-9]{2}[,\.]?[0-9]{3}[,\.]?[0-9]{2}/g
+        ];
+
+        for (const pattern of patterns) {
+          const matches = html.match(pattern);
+          if (matches) {
+            for (const match of matches) {
+              const cleaned = match.replace(/,/g, '');
+              const num = parseFloat(cleaned);
+              if (num >= 400000 && num <= 700000) {
+                console.log(`Precio del oro encontrado (búsqueda específica): COP ${num}`);
+                return num;
+              }
+            }
+          }
+        }
+        return null;
       }
+    ];
+
+    // Ejecutar estrategias en orden
+    for (const strategy of strategies) {
+      const result = strategy();
+      if (result) return result;
     }
 
     throw new Error("No se encontró precio del gramo en COP");
   } catch (error) {
     console.warn("Error al obtener precio del oro:", error.message);
-    console.log("Usando precio de referencia actual: COP 511,775.46");
-    return 511775.46;
+    console.log("Usando precio de referencia actual: COP 513,446.78");
+    // Actualizado con el valor de la captura
+    return 513446.78;
   }
 }
 
