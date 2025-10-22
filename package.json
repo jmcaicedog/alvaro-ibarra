@@ -1,0 +1,20 @@
+{
+  "name": "elcoronel-gold-trm",
+  "version": "0.1.0",
+  "description": "Pequeña app móvil que muestra precio de la onza de oro convertido a COP y TRM desde fuentes públicas.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "node-fetch": "2.6.9"
+  },
+  "engines": {
+    "node": ">=14.x"
+  }
+}
