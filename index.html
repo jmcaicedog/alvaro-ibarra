@@ -41,6 +41,32 @@
         <div id="gold-gram-final" class="value">Cargando...</div>
       </div>
 
+      <!-- Nueva funcionalidad de cálculo de porcentajes -->
+      <div class="row">
+        <div class="card small">
+          <div class="label">Ingrese porcentaje sobre Gold Price</div>
+          <div class="input-container">
+            <input type="number" id="percentage-input" min="0" max="100" step="0.01" placeholder="0.00" />
+            <span class="percentage-symbol">%</span>
+          </div>
+        </div>
+        <div class="card small">
+          <div class="label">Resultado del porcentaje (COP)</div>
+          <div id="percentage-result" class="value">-</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="card small">
+          <div class="label">Porcentaje calculado</div>
+          <div id="calculated-percentage" class="value">-</div>
+        </div>
+        <div class="card small">
+          <div class="label">Resultado aproximado (COP)</div>
+          <div id="approximated-result" class="value">-</div>
+        </div>
+      </div>
+
       <footer class="small-note">Última actualización: <span id="updated">-</span></footer>
     </main>
 

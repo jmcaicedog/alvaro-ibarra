@@ -9,5 +9,9 @@ h1{text-align:center;color:var(--accent);margin:8px 0 18px}
 .value{font-size:20px;font-weight:700;margin-top:6px}
 .row{display:flex;gap:8px}
 .card.small{flex:1;padding:10px}
+.input-container{position:relative;margin-top:6px}
+.input-container input{width:100%;padding:8px 30px 8px 8px;font-size:18px;font-weight:700;border:2px solid #ddd;border-radius:6px;background:#fff}
+.input-container input:focus{outline:none;border-color:var(--accent)}
+.percentage-symbol{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:18px;font-weight:700;color:var(--accent);pointer-events:none}
 
-@media (max-width:420px){.value{font-size:18px}.container{padding:12px}}
+@media (max-width:420px){.value{font-size:18px}.container{padding:12px}.input-container input{font-size:16px}.percentage-symbol{font-size:16px}}
