@@ -10,10 +10,143 @@ const OUNCE_TO_GRAM = 31.1034768;
 
 async function fetchGoldPriceCOPPerGram() {
   try {
-    const url = "https://goldprice.org/gold-price-per-gram.html";
+    // Opción 2: Intentar APIs internas de goldprice.org primero
+    console.log("🔗 Probando APIs internas de goldprice.org...");
+
+    // URLs de APIs de datos específicas encontradas en las capturas de red
+    const apiUrls = [
+      "https://data-asg.goldprice.org/dbXRates/COP", // Endpoint directo para COP
+      "https://data-asg.goldprice.org/GetData/USD-XAU/1", // USD a Oro (XAU)
+      "https://data-asg.goldprice.org/dbXRates/USD", // USD rates (fallback)
+      "https://data-asg.goldprice.org/GetData/COP-XAU/1", // COP a Oro directo (intento)
+      "https://data-asg.goldprice.org/dbXRates", // Endpoint base
+    ];
+
+    for (const apiUrl of apiUrls) {
+      try {
+        const apiResponse = await fetch(apiUrl, {
+          headers: {
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            Accept: "application/json,*/*",
+            Referer: "https://goldprice.org/",
+          },
+        });
+
+        if (apiResponse.ok) {
+          const contentType = apiResponse.headers.get("content-type") || "";
+
+          if (contentType.includes("application/json")) {
+            const jsonData = await apiResponse.json();
+
+            // Buscar precio en estructura JSON
+            const result = extractPriceFromJSON(jsonData, apiUrl);
+            if (result) {
+              if (typeof result === "object" && result.needsConversion) {
+                // Convertir USD/oz a COP/g usando TRM
+                const trm = await fetchTRM();
+                const copPerGram = (result.usdPerOunce * trm) / OUNCE_TO_GRAM;
+                console.log(
+                  `✅ Precio obtenido: ${copPerGram.toFixed(2)} COP/g`
+                );
+                return copPerGram;
+              } else {
+                console.log(`✅ Precio obtenido: ${result.toFixed(2)} COP/g`);
+                return result;
+              }
+            }
+          } else {
+            const textData = await apiResponse.text();
+
+            // Buscar precio en texto con regex
+            const priceMatch = textData.match(
+              /([45][0-9]{2}[,.]?[0-9]{3}[,.]?[0-9]{0,2})/
+            );
+            if (priceMatch) {
+              const price = parseFloat(priceMatch[1].replace(/,/g, ""));
+              if (price >= 400000 && price <= 700000) {
+                console.log(`✅ Precio obtenido: ${price.toFixed(2)} COP/g`);
+                return price;
+              }
+            }
+          }
+        }
+      } catch (apiError) {
+        // Silenciar errores de API individuales
+      }
+    }
+
+    // Función auxiliar actualizada para manejar las estructuras JSON reales
+    function extractPriceFromJSON(data, apiUrl) {
+      // Para dbXRates/COP: { "items": [{ "xauPrice": 16035819.2719 }] }
+      if (apiUrl.includes("dbXRates/COP")) {
+        if (data.items && data.items[0]) {
+          const item = data.items[0];
+          const xauPrice = item.xauPrice; // COP por onza troy
+
+          if (typeof xauPrice === "number" && xauPrice > 10000000) {
+            // Convertir COP/onza a COP/gramo
+            const copPerGram = xauPrice / OUNCE_TO_GRAM;
+            return copPerGram;
+          }
+        }
+      }
+
+      // Para GetData/COP-XAU/1: ["COP-XAU,16037819.4031"]
+      if (apiUrl.includes("GetData/COP-XAU")) {
+        if (Array.isArray(data) && data[0]) {
+          const priceString = data[0]; // "COP-XAU,16037819.4031"
+          const match = priceString.match(/COP-XAU,([0-9.]+)/);
+
+          if (match && match[1]) {
+            const copPerOunce = parseFloat(match[1]);
+            const copPerGram = copPerOunce / OUNCE_TO_GRAM;
+            return copPerGram;
+          }
+        }
+      }
+
+      // Para GetData/USD-XAU/1: ["USD-XAU,4129.4675"]
+      if (apiUrl.includes("GetData/USD-XAU")) {
+        if (Array.isArray(data) && data[0]) {
+          const priceString = data[0]; // "USD-XAU,4129.4675"
+          const match = priceString.match(/USD-XAU,([0-9.]+)/);
+
+          if (match && match[1]) {
+            const usdPerOunce = parseFloat(match[1]);
+            if (usdPerOunce >= 3000 && usdPerOunce <= 5000) {
+              return { usdPerOunce: usdPerOunce, needsConversion: true };
+            }
+          }
+        }
+      }
+
+      // Para dbXRates/USD: { "items": [{ "xauPrice": 4128.47 }] }
+      if (apiUrl.includes("dbXRates/USD")) {
+        if (data.items && data.items[0]) {
+          const item = data.items[0];
+          const xauPrice = item.xauPrice; // USD por onza troy
+
+          if (
+            typeof xauPrice === "number" &&
+            xauPrice >= 3000 &&
+            xauPrice <= 5000
+          ) {
+            return { usdPerOunce: xauPrice, needsConversion: true };
+          }
+        }
+      }
+
+      return null;
+    }
+
+    // Si APIs fallan, usar scraping HTML tradicional
+    console.log("🔄 Usando método de respaldo...");
+    const htmlUrl = "https://goldprice.org/gold-price-per-gram.html";
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
     });
     const html = await response.text();
@@ -25,10 +158,12 @@ async function fetchGoldPriceCOPPerGram() {
         const matches = html.match(/([5][0-9]{2}[,][0-9]{3}[\.][0-9]{2})/g);
         if (matches) {
           for (const match of matches) {
-            const cleaned = match.replace(/,/g, '');
+            const cleaned = match.replace(/,/g, "");
             const num = parseFloat(cleaned);
             if (num >= 500000 && num <= 550000) {
-              console.log(`Precio del oro encontrado (patrón exacto): COP ${num}`);
+              console.log(
+                `Precio del oro encontrado (patrón exacto): COP ${num}`
+              );
               return num;
             }
           }
@@ -36,24 +171,28 @@ async function fetchGoldPriceCOPPerGram() {
         return null;
       },
 
-      // 2. Buscar números con formato general 513,446.78 
+      // 2. Buscar números con formato general 513,446.78
       () => {
-        const matches = html.match(/([4-6][0-9]{2}[,\.][0-9]{3}[,\.][0-9]{2})/g);
+        const matches = html.match(
+          /([4-6][0-9]{2}[,\.][0-9]{3}[,\.][0-9]{2})/g
+        );
         if (matches) {
           for (const match of matches) {
             let cleaned = match;
             // Si tiene coma y punto, asumir formato americano (513,446.78)
-            if (match.includes(',') && match.includes('.')) {
-              cleaned = match.replace(/,/g, '');
+            if (match.includes(",") && match.includes(".")) {
+              cleaned = match.replace(/,/g, "");
             }
             // Si solo tiene punto en posición de miles (513.446,78 -> europeo)
             else if (match.match(/[0-9]{3}\.[0-9]{3},[0-9]{2}/)) {
-              cleaned = match.replace(/\./g, '').replace(',', '.');
+              cleaned = match.replace(/\./g, "").replace(",", ".");
             }
-            
+
             const num = parseFloat(cleaned);
             if (num >= 400000 && num <= 700000) {
-              console.log(`Precio del oro encontrado (formato general): COP ${num}`);
+              console.log(
+                `Precio del oro encontrado (formato general): COP ${num}`
+              );
               return num;
             }
           }
@@ -68,24 +207,26 @@ async function fetchGoldPriceCOPPerGram() {
         const patterns = [
           /513[,\.]?446[,\.]?78/g,
           /513[,\.]?[0-9]{3}[,\.]?[0-9]{2}/g,
-          /5[0-9]{2}[,\.]?[0-9]{3}[,\.]?[0-9]{2}/g
+          /5[0-9]{2}[,\.]?[0-9]{3}[,\.]?[0-9]{2}/g,
         ];
 
         for (const pattern of patterns) {
           const matches = html.match(pattern);
           if (matches) {
             for (const match of matches) {
-              const cleaned = match.replace(/,/g, '');
+              const cleaned = match.replace(/,/g, "");
               const num = parseFloat(cleaned);
               if (num >= 400000 && num <= 700000) {
-                console.log(`Precio del oro encontrado (búsqueda específica): COP ${num}`);
+                console.log(
+                  `Precio del oro encontrado (búsqueda específica): COP ${num}`
+                );
                 return num;
               }
             }
           }
         }
         return null;
-      }
+      },
     ];
 
     // Ejecutar estrategias en orden
