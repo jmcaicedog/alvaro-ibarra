@@ -2,6 +2,7 @@ const elGoldGram = document.getElementById("gold-gram");
 const elGoldGramFinal = document.getElementById("gold-gram-final");
 const elGoldOunce = document.getElementById("gold-ounce");
 const elGoldOunceUsd = document.getElementById("gold-ounce-usd");
+const elKitcoOunceUsd = document.getElementById("kitco-ounce-usd");
 const elTrm = document.getElementById("trm");
 const elTrmFinal = document.getElementById("trm-final");
 const elFactor = document.getElementById("factor");
@@ -27,6 +28,7 @@ function updateCalculatedPrices() {
 
   const source = getSelectedPriceSource();
   const goldOunceUsd = currentData.computed.goldUsdPerOunce;
+  const kitcoOunceUsd = currentData.computed.kitcoUsdPerOunce;
   const trm = currentData.raw.trm;
   const trmFinal = currentData.computed.dollarFinal;
   const factor = currentData.computed.ounceToGram;
@@ -39,12 +41,15 @@ function updateCalculatedPrices() {
   } else if (source === "GoldPrice") {
     // 2. Gold Price: Precio por onza = "Precio onza Gold Price (USD)" × "Dólar precio final"
     goldCopPerOunce = goldOunceUsd * trmFinal;
+  } else if (source === "KITCO") {
+    // 3. KITCO: Precio por onza = "Precio onza Kitco (USD)" × "Dólar precio final"
+    goldCopPerOunce = kitcoOunceUsd * trmFinal;
   } else {
-    // KITCO: por ahora usar el mismo cálculo que Gold Price
-    goldCopPerOunce = goldOunceUsd * trmFinal;
+    // Fallback a TRM
+    goldCopPerOunce = goldOunceUsd * trm;
   }
 
-  // Para ambos casos: Precio Oro/g precio final = Precio por onza ÷ Factor
+  // Para todos los casos: Precio Oro/g precio final = Precio por onza ÷ Factor
   goldCopPerGramFinal = goldCopPerOunce / factor;
 
   // Actualizar las casillas calculadas
@@ -124,11 +129,13 @@ async function load() {
     const goldGramFinal = j.computed.goldCopPerGramFinal;
     const goldOunce = j.computed.goldCopPerOunce;
     const goldOunceUsd = j.computed.goldUsdPerOunce;
+    const kitcoOunceUsd = j.computed.kitcoUsdPerOunce;
     const trm = j.raw.trm;
     const trmFinal = j.computed.dollarFinal;
 
     elGoldGram.textContent = "COP " + fmt(goldGram.toFixed(2));
     elGoldOunceUsd.textContent = "USD " + fmt(goldOunceUsd.toFixed(2));
+    elKitcoOunceUsd.textContent = "USD " + fmt(kitcoOunceUsd.toFixed(2));
     elTrm.textContent = "COP " + fmt(trm.toFixed(2));
     elTrmFinal.textContent = "COP " + fmt(trmFinal.toFixed(2));
     elFactor.textContent = gPerOunce;
@@ -144,6 +151,7 @@ async function load() {
     elGoldGramFinal.textContent = "Error";
     elGoldOunce.textContent = "Error";
     elGoldOunceUsd.textContent = "Error";
+    elKitcoOunceUsd.textContent = "Error";
     elTrm.textContent = "Error";
     elTrmFinal.textContent = "Error";
     elUpdated.textContent = err.message;

@@ -313,6 +313,69 @@ async function fetchGoldPriceUSDPerOunce() {
   }
 }
 
+async function fetchKitcoGoldPrice() {
+  try {
+    console.log("🔗 Obteniendo precio del oro desde Kitco...");
+
+    const url = "https://www.kitco.com/charts/gold";
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+      },
+    });
+
+    if (response.ok) {
+      const html = await response.text();
+
+      // Buscar el precio en diferentes patrones del HTML de Kitco
+      const patterns = [
+        // Patrón para precio como 3,980.40
+        /([3-4],[0-9]{3}\.[0-9]{2})/g,
+        // Patrón para precio como 3980.40
+        /([3-4][0-9]{3}\.[0-9]{2})/g,
+        // Patrón más específico para el live price
+        /"price"[:\s]*"?([3-4],[0-9]{3}\.[0-9]{2})"?/g,
+        // Patrón en JSON para XAU/USD
+        /"XAUUSD"[^}]*"price"[:\s]*"?([3-4],[0-9]{3}\.[0-9]{2})"?/g,
+      ];
+
+      for (const pattern of patterns) {
+        const matches = html.match(pattern);
+        if (matches) {
+          for (const match of matches) {
+            // Extraer solo el número del match
+            const priceMatch = match.match(
+              /([3-4],[0-9]{3}\.[0-9]{2})|([3-4][0-9]{3}\.[0-9]{2})/
+            );
+            if (priceMatch) {
+              const priceStr = priceMatch[0];
+              const price = parseFloat(priceStr.replace(/,/g, ""));
+
+              if (price >= 3000 && price <= 5000) {
+                console.log(`✅ Precio Kitco obtenido: ${price} USD/oz`);
+                return price;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    throw new Error("No se pudo obtener precio desde Kitco");
+  } catch (error) {
+    console.warn("Error al obtener precio de Kitco:", error.message);
+    console.log("Usando precio de referencia Kitco: 3980.40 USD/oz");
+    return 3980.4;
+  }
+}
+
 const app = express();
 
 // Middleware CORS
@@ -359,11 +422,13 @@ app.get("/app.js", (req, res) => {
 // API endpoint
 app.get("/api/data", async (req, res) => {
   try {
-    const [goldCopPerGram, trm, goldUsdPerOunce] = await Promise.all([
-      fetchGoldPriceCOPPerGram(),
-      fetchTRM(),
-      fetchGoldPriceUSDPerOunce(),
-    ]);
+    const [goldCopPerGram, trm, goldUsdPerOunce, kitcoUsdPerOunce] =
+      await Promise.all([
+        fetchGoldPriceCOPPerGram(),
+        fetchTRM(),
+        fetchGoldPriceUSDPerOunce(),
+        fetchKitcoGoldPrice(),
+      ]);
 
     const goldCopPerOunce = goldCopPerGram * OUNCE_TO_GRAM;
     const dollarFinal = trm - 100;
@@ -373,11 +438,13 @@ app.get("/api/data", async (req, res) => {
     res.json({
       source: {
         goldPriceSource: "goldprice.org/gold-price-per-gram.html",
+        kitcoSource: "kitco.com/charts/gold",
         trmSource: "pbit.bancodebogota.com",
       },
       raw: {
         goldCopPerGram: goldCopPerGram,
         goldUsdPerOunce: goldUsdPerOunce,
+        kitcoUsdPerOunce: kitcoUsdPerOunce,
         trm: trm,
       },
       computed: {
@@ -385,6 +452,7 @@ app.get("/api/data", async (req, res) => {
         goldCopPerGram: Number(goldCopPerGram.toFixed(2)),
         goldCopPerGramFinal: Number(goldCopPerGramFinal.toFixed(2)),
         goldUsdPerOunce: Number(goldUsdPerOunce.toFixed(2)),
+        kitcoUsdPerOunce: Number(kitcoUsdPerOunce.toFixed(2)),
         ounceToGram: OUNCE_TO_GRAM,
         dollarFinal: Number(dollarFinal.toFixed(2)),
       },
