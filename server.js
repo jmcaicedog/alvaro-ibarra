@@ -275,6 +275,44 @@ async function fetchTRM() {
   }
 }
 
+async function fetchGoldPriceUSDPerOunce() {
+  try {
+    console.log("🔗 Obteniendo precio del oro en USD...");
+
+    const apiUrl = "https://data-asg.goldprice.org/dbXRates/USD";
+    const apiResponse = await fetch(apiUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Accept: "application/json,*/*",
+        Referer: "https://goldprice.org/",
+      },
+    });
+
+    if (apiResponse.ok) {
+      const jsonData = await apiResponse.json();
+
+      // Extraer el precio de la onza en USD (xauPrice)
+      if (
+        jsonData &&
+        jsonData.items &&
+        jsonData.items[0] &&
+        jsonData.items[0].xauPrice
+      ) {
+        const usdPerOunce = jsonData.items[0].xauPrice;
+        console.log(`✅ Precio obtenido: ${usdPerOunce} USD/oz`);
+        return usdPerOunce;
+      }
+    }
+
+    throw new Error("No se pudo obtener precio en USD");
+  } catch (error) {
+    console.warn("Error al obtener precio del oro en USD:", error.message);
+    console.log("Usando precio de referencia: 2650.00 USD/oz");
+    return 2650.0;
+  }
+}
+
 const app = express();
 
 // Middleware CORS
@@ -321,9 +359,10 @@ app.get("/app.js", (req, res) => {
 // API endpoint
 app.get("/api/data", async (req, res) => {
   try {
-    const [goldCopPerGram, trm] = await Promise.all([
+    const [goldCopPerGram, trm, goldUsdPerOunce] = await Promise.all([
       fetchGoldPriceCOPPerGram(),
       fetchTRM(),
+      fetchGoldPriceUSDPerOunce(),
     ]);
 
     const goldCopPerOunce = goldCopPerGram * OUNCE_TO_GRAM;
@@ -338,12 +377,14 @@ app.get("/api/data", async (req, res) => {
       },
       raw: {
         goldCopPerGram: goldCopPerGram,
+        goldUsdPerOunce: goldUsdPerOunce,
         trm: trm,
       },
       computed: {
         goldCopPerOunce: Number(goldCopPerOunce.toFixed(2)),
         goldCopPerGram: Number(goldCopPerGram.toFixed(2)),
         goldCopPerGramFinal: Number(goldCopPerGramFinal.toFixed(2)),
+        goldUsdPerOunce: Number(goldUsdPerOunce.toFixed(2)),
         ounceToGram: OUNCE_TO_GRAM,
         dollarFinal: Number(dollarFinal.toFixed(2)),
       },

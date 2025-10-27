@@ -1,6 +1,7 @@
 const elGoldGram = document.getElementById("gold-gram");
 const elGoldGramFinal = document.getElementById("gold-gram-final");
 const elGoldOunce = document.getElementById("gold-ounce");
+const elGoldOunceUsd = document.getElementById("gold-ounce-usd");
 const elTrm = document.getElementById("trm");
 const elTrmFinal = document.getElementById("trm-final");
 const elFactor = document.getElementById("factor");
@@ -68,12 +69,14 @@ async function load() {
     const goldGram = j.computed.goldCopPerGram;
     const goldGramFinal = j.computed.goldCopPerGramFinal;
     const goldOunce = j.computed.goldCopPerOunce;
+    const goldOunceUsd = j.computed.goldUsdPerOunce;
     const trm = j.raw.trm;
     const trmFinal = j.computed.dollarFinal;
 
     elGoldGram.textContent = "COP " + fmt(goldGram.toFixed(2));
     elGoldGramFinal.textContent = "COP " + fmt(goldGramFinal.toFixed(2));
     elGoldOunce.textContent = "COP " + fmt(goldOunce.toFixed(2));
+    elGoldOunceUsd.textContent = "USD " + fmt(goldOunceUsd.toFixed(2));
     elTrm.textContent = "COP " + fmt(trm.toFixed(2));
     elTrmFinal.textContent = "COP " + fmt(trmFinal.toFixed(2));
     elFactor.textContent = gPerOunce;
@@ -85,6 +88,7 @@ async function load() {
     elGoldGram.textContent = "Error";
     elGoldGramFinal.textContent = "Error";
     elGoldOunce.textContent = "Error";
+    elGoldOunceUsd.textContent = "Error";
     elTrm.textContent = "Error";
     elTrmFinal.textContent = "Error";
     elUpdated.textContent = err.message;
