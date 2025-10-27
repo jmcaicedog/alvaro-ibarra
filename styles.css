@@ -9,6 +9,10 @@ h1{text-align:center;color:var(--accent);margin:8px 0 18px}
 .value{font-size:20px;font-weight:700;margin-top:6px}
 .row{display:flex;gap:8px}
 .card.small{flex:1;padding:10px}
+/* Radio group inside small card */
+.radio-group{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.radio-option{font-weight:600;color:#444}
+.radio-option input{margin-right:8px}
 .input-container{position:relative;margin-top:6px}
 .input-container input{width:100%;padding:8px 30px 8px 8px;font-size:18px;font-weight:700;border:2px solid #ddd;border-radius:6px;background:#fff}
 .input-container input:focus{outline:none;border-color:var(--accent)}

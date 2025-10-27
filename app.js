@@ -12,6 +12,60 @@ const elPercentageInput = document.getElementById("percentage-input");
 const elPercentageResult = document.getElementById("percentage-result");
 const elCalculatedPercentage = document.getElementById("calculated-percentage");
 const elApproximatedResult = document.getElementById("approximated-result");
+// Radio selector elements
+const elPriceSourceRadios = document.getElementsByName("price-source");
+
+function getSelectedPriceSource() {
+  for (const r of elPriceSourceRadios) {
+    if (r.checked) return r.value;
+  }
+  return "TRM"; // default
+}
+
+function updateCalculatedPrices() {
+  if (!currentData) return;
+
+  const source = getSelectedPriceSource();
+  const goldOunceUsd = currentData.computed.goldUsdPerOunce;
+  const trm = currentData.raw.trm;
+  const trmFinal = currentData.computed.dollarFinal;
+  const factor = currentData.computed.ounceToGram;
+
+  let goldCopPerOunce, goldCopPerGramFinal;
+
+  if (source === "TRM") {
+    // 1. TRM: Precio por onza = "Precio onza Gold Price (USD)" × "Dólar TRM"
+    goldCopPerOunce = goldOunceUsd * trm;
+  } else if (source === "GoldPrice") {
+    // 2. Gold Price: Precio por onza = "Precio onza Gold Price (USD)" × "Dólar precio final"
+    goldCopPerOunce = goldOunceUsd * trmFinal;
+  } else {
+    // KITCO: por ahora usar el mismo cálculo que Gold Price
+    goldCopPerOunce = goldOunceUsd * trmFinal;
+  }
+
+  // Para ambos casos: Precio Oro/g precio final = Precio por onza ÷ Factor
+  goldCopPerGramFinal = goldCopPerOunce / factor;
+
+  // Actualizar las casillas calculadas
+  elGoldOunce.textContent = "COP " + fmt(goldCopPerOunce.toFixed(2));
+  elGoldGramFinal.textContent = "COP " + fmt(goldCopPerGramFinal.toFixed(2));
+
+  // Actualizar currentData para que los cálculos de porcentaje usen los nuevos valores
+  currentData.computed.goldCopPerOunce = Number(goldCopPerOunce.toFixed(2));
+  currentData.computed.goldCopPerGramFinal = Number(
+    goldCopPerGramFinal.toFixed(2)
+  );
+}
+
+// Cuando cambia la fuente seleccionada, recalcular precios y porcentajes
+for (const r of elPriceSourceRadios) {
+  r.addEventListener("change", () => {
+    console.log("Fuente seleccionada:", getSelectedPriceSource());
+    updateCalculatedPrices();
+    calculatePercentages();
+  });
+}
 
 function fmt(n) {
   return new Intl.NumberFormat("es-CO").format(n);
@@ -74,13 +128,14 @@ async function load() {
     const trmFinal = j.computed.dollarFinal;
 
     elGoldGram.textContent = "COP " + fmt(goldGram.toFixed(2));
-    elGoldGramFinal.textContent = "COP " + fmt(goldGramFinal.toFixed(2));
-    elGoldOunce.textContent = "COP " + fmt(goldOunce.toFixed(2));
     elGoldOunceUsd.textContent = "USD " + fmt(goldOunceUsd.toFixed(2));
     elTrm.textContent = "COP " + fmt(trm.toFixed(2));
     elTrmFinal.textContent = "COP " + fmt(trmFinal.toFixed(2));
     elFactor.textContent = gPerOunce;
     elUpdated.textContent = new Date(j.fetchedAt).toLocaleString();
+
+    // Calcular precios según la fuente seleccionada
+    updateCalculatedPrices();
 
     // Recalcular porcentajes si hay un valor en el input
     calculatePercentages();
