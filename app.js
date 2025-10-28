@@ -20,12 +20,20 @@ const elSecondResultLabel = document.getElementById("second-result-label");
 const elCalculatedResult = document.getElementById("calculated-result");
 // Radio selector elements
 const elPriceSourceRadios = document.getElementsByName("price-source");
+const elDollarTypeRadios = document.getElementsByName("dollar-type");
 
 function getSelectedPriceSource() {
   for (const r of elPriceSourceRadios) {
     if (r.checked) return r.value;
   }
   return "TRM"; // default
+}
+
+function getSelectedDollarType() {
+  for (const r of elDollarTypeRadios) {
+    if (r.checked) return r.value;
+  }
+  return "full"; // default
 }
 
 function updateLabels() {
@@ -50,26 +58,30 @@ function updateCalculatedPrices() {
   if (!currentData) return;
 
   const source = getSelectedPriceSource();
+  const dollarType = getSelectedDollarType();
   const goldOunceUsd = currentData.computed.goldUsdPerOunce;
   const kitcoOunceUsd = currentData.computed.kitcoUsdPerOunce;
   const trm = currentData.raw.trm;
   const trmFinal = currentData.computed.dollarFinal;
   const factor = currentData.computed.ounceToGram;
 
+  // Determinar qué tasa de cambio usar según el tipo de dólar seleccionado
+  const exchangeRate = dollarType === "full" ? trm : trmFinal;
+
   let goldCopPerOunce, goldCopPerGramFinal;
 
   if (source === "TRM") {
-    // 1. TRM: Precio por onza = "Precio onza Gold Price (USD)" × "Dólar TRM"
-    goldCopPerOunce = goldOunceUsd * trm;
+    // TRM: Precio por onza = "Precio onza Gold Price (USD)" × tasa de cambio
+    goldCopPerOunce = goldOunceUsd * exchangeRate;
   } else if (source === "GoldPrice") {
-    // 2. Gold Price: Precio por onza = "Precio onza Gold Price (USD)" × "Dólar precio final"
-    goldCopPerOunce = goldOunceUsd * trmFinal;
+    // Gold Price: Precio por onza = "Precio onza Gold Price (USD)" × tasa de cambio
+    goldCopPerOunce = goldOunceUsd * exchangeRate;
   } else if (source === "KITCO") {
-    // 3. KITCO: Precio por onza = "Precio onza Kitco (USD)" × "Dólar precio final"
-    goldCopPerOunce = kitcoOunceUsd * trmFinal;
+    // KITCO: Precio por onza = "Precio onza Kitco (USD)" × tasa de cambio
+    goldCopPerOunce = kitcoOunceUsd * exchangeRate;
   } else {
     // Fallback a TRM
-    goldCopPerOunce = goldOunceUsd * trm;
+    goldCopPerOunce = goldOunceUsd * exchangeRate;
   }
 
   // Para todos los casos: Precio Oro/g precio final = Precio por onza ÷ Factor
@@ -228,5 +240,13 @@ async function load() {
 
 // Event listener para el input de porcentaje
 elPercentageInput.addEventListener("input", calculatePercentages);
+
+// Event listeners para los radio buttons de tipo de dólar
+elDollarTypeRadios.forEach((radio) => {
+  radio.addEventListener("change", function () {
+    updateCalculatedPrices();
+    calculatePercentages();
+  });
+});
 
 load();
