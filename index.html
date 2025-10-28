@@ -54,11 +54,11 @@
 
       <div class="row">
         <div class="card small">
-          <div class="label">Oro (oz)</div>
+          <div class="label">Oro (g)</div>
           <div id="gold-ounce" class="value">Cargando...</div>
         </div>
         <div class="card small">
-          <div class="label">Oro (g)</div>
+          <div class="label">Oro (oz)</div>
           <div id="gold-gram-final" class="value">Cargando...</div>
         </div>
       </div>
@@ -66,26 +66,26 @@
       <!-- Nueva funcionalidad de cálculo de porcentajes -->
       <div class="row">
         <div class="card small">
-          <div class="label">Porcentaje Gold Price</div>
+          <div class="label" id="percentage-input-label">% TRM</div>
           <div class="input-container">
             <input type="number" id="percentage-input" min="0" max="100" step="0.01" placeholder="0.00" />
             <span class="percentage-symbol">%</span>
           </div>
         </div>
         <div class="card small">
-          <div class="label">Resultado del porcentaje (COP)</div>
-          <div id="percentage-result" class="value">-</div>
+          <div class="label">Resultado calculado (COP)</div>
+          <div id="calculated-result" class="value">-</div>
         </div>
       </div>
 
       <div class="row">
         <div class="card small">
-          <div class="label">Porcentaje calculado</div>
-          <div id="calculated-percentage" class="value">-</div>
+          <div class="label" id="first-result-label">% Equivalente Gold Price</div>
+          <div id="first-result" class="value">-</div>
         </div>
         <div class="card small">
-          <div class="label">Resultado aproximado (COP)</div>
-          <div id="approximated-result" class="value">-</div>
+          <div class="label" id="second-result-label">% Equivalente KITCO</div>
+          <div id="second-result" class="value">-</div>
         </div>
       </div>
 

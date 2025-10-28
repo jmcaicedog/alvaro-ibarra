@@ -10,9 +10,14 @@ const elUpdated = document.getElementById("updated");
 
 // Nuevos elementos para la funcionalidad de porcentajes
 const elPercentageInput = document.getElementById("percentage-input");
-const elPercentageResult = document.getElementById("percentage-result");
-const elCalculatedPercentage = document.getElementById("calculated-percentage");
-const elApproximatedResult = document.getElementById("approximated-result");
+const elPercentageInputLabel = document.getElementById(
+  "percentage-input-label"
+);
+const elFirstResult = document.getElementById("first-result");
+const elFirstResultLabel = document.getElementById("first-result-label");
+const elSecondResult = document.getElementById("second-result");
+const elSecondResultLabel = document.getElementById("second-result-label");
+const elCalculatedResult = document.getElementById("calculated-result");
 // Radio selector elements
 const elPriceSourceRadios = document.getElementsByName("price-source");
 
@@ -21,6 +26,24 @@ function getSelectedPriceSource() {
     if (r.checked) return r.value;
   }
   return "TRM"; // default
+}
+
+function updateLabels() {
+  const source = getSelectedPriceSource();
+
+  if (source === "TRM") {
+    elPercentageInputLabel.textContent = "% TRM";
+    elFirstResultLabel.textContent = "% Equivalente Gold Price";
+    elSecondResultLabel.textContent = "% Equivalente KITCO";
+  } else if (source === "GoldPrice") {
+    elPercentageInputLabel.textContent = "% Gold Price";
+    elFirstResultLabel.textContent = "% Equivalente TRM";
+    elSecondResultLabel.textContent = "% Equivalente KITCO";
+  } else if (source === "KITCO") {
+    elPercentageInputLabel.textContent = "% KITCO";
+    elFirstResultLabel.textContent = "% Equivalente TRM";
+    elSecondResultLabel.textContent = "% Equivalente Gold Price";
+  }
 }
 
 function updateCalculatedPrices() {
@@ -67,6 +90,7 @@ function updateCalculatedPrices() {
 for (const r of elPriceSourceRadios) {
   r.addEventListener("change", () => {
     console.log("Fuente seleccionada:", getSelectedPriceSource());
+    updateLabels();
     updateCalculatedPrices();
     calculatePercentages();
   });
@@ -81,38 +105,77 @@ let currentData = null;
 
 function calculatePercentages() {
   if (!currentData || !elPercentageInput.value) {
-    elPercentageResult.textContent = "-";
-    elCalculatedPercentage.textContent = "-";
-    elApproximatedResult.textContent = "-";
+    elFirstResult.textContent = "-";
+    elSecondResult.textContent = "-";
+    elCalculatedResult.textContent = "-";
     return;
   }
 
   const percentage = parseFloat(elPercentageInput.value);
   if (isNaN(percentage) || percentage < 0 || percentage > 100) {
-    elPercentageResult.textContent = "Valor inválido";
-    elCalculatedPercentage.textContent = "-";
-    elApproximatedResult.textContent = "-";
+    elFirstResult.textContent = "Valor inválido";
+    elSecondResult.textContent = "-";
+    elCalculatedResult.textContent = "-";
     return;
   }
 
-  // 1. Calcular el porcentaje sobre el Gold Price (primer card)
-  const goldGramValue = currentData.computed.goldCopPerGram;
-  const percentageResult = (goldGramValue * percentage) / 100;
+  const source = getSelectedPriceSource();
 
-  // 2. Mostrar el resultado
-  elPercentageResult.textContent = "COP " + fmt(percentageResult.toFixed(2));
+  // Obtener el valor actual de "Oro (oz)" que corresponde a elGoldGramFinal
+  const oroOzText = elGoldGramFinal.textContent.replace("COP ", "");
 
-  // 3. Calcular qué porcentaje del último card (Precio Oro/g precio final) se aproxima más
-  const goldGramFinalValue = currentData.computed.goldCopPerGramFinal;
-  const calculatedPercentage = (percentageResult / goldGramFinalValue) * 100;
+  // Manejar formato español: 486.320,08 -> 486320.08
+  // Reemplazar puntos (separadores de miles) por nada y comas (decimales) por puntos
+  const cleanText = oroOzText.replace(/\./g, "").replace(",", ".");
+  const oroOzValue = parseFloat(cleanText);
 
-  // 4. Calcular el resultado de aplicar ese porcentaje
-  const approximatedResult = (goldGramFinalValue * calculatedPercentage) / 100;
+  if (isNaN(oroOzValue)) {
+    elFirstResult.textContent = "Error en datos";
+    elSecondResult.textContent = "-";
+    elCalculatedResult.textContent = "-";
+    return;
+  }
 
-  // 5. Mostrar los resultados
-  elCalculatedPercentage.textContent = calculatedPercentage.toFixed(2) + "%";
-  elApproximatedResult.textContent =
-    "COP " + fmt(approximatedResult.toFixed(2));
+  // Calcular el resultado en COP aplicando el porcentaje al valor de "Oro (oz)"
+  const resultCOP = (oroOzValue * percentage) / 100;
+
+  // Para calcular equivalencias, necesito obtener los valores que tendría "Oro (oz)"
+  // para cada fuente, basándome en los datos actuales
+  let trmOunceValue, goldPriceOunceValue, kitcoOunceValue;
+
+  if (currentData) {
+    const goldPriceUSD = currentData.computed.goldUsdPerOunce;
+    const kitcoUSD = currentData.computed.kitcoUsdPerOunce;
+    const trm = currentData.raw.trm;
+    const trmFinal = currentData.computed.dollarFinal;
+
+    // Estos serían los valores de "Oro (oz)" para cada fuente
+    trmOunceValue = (goldPriceUSD * trm) / currentData.computed.ounceToGram;
+    goldPriceOunceValue =
+      (goldPriceUSD * trmFinal) / currentData.computed.ounceToGram;
+    kitcoOunceValue = (kitcoUSD * trmFinal) / currentData.computed.ounceToGram;
+  }
+
+  let firstEquivalent, secondEquivalent;
+
+  if (source === "TRM") {
+    // Input es % TRM - calcular equivalentes para Gold Price y KITCO
+    firstEquivalent = (resultCOP / goldPriceOunceValue) * 100; // % Gold Price
+    secondEquivalent = (resultCOP / kitcoOunceValue) * 100; // % KITCO
+  } else if (source === "GoldPrice") {
+    // Input es % Gold Price - calcular equivalentes para TRM y KITCO
+    firstEquivalent = (resultCOP / trmOunceValue) * 100; // % TRM
+    secondEquivalent = (resultCOP / kitcoOunceValue) * 100; // % KITCO
+  } else if (source === "KITCO") {
+    // Input es % KITCO - calcular equivalentes para TRM y Gold Price
+    firstEquivalent = (resultCOP / trmOunceValue) * 100; // % TRM
+    secondEquivalent = (resultCOP / goldPriceOunceValue) * 100; // % Gold Price
+  }
+
+  // Mostrar los resultados
+  elFirstResult.textContent = firstEquivalent.toFixed(2) + "%";
+  elSecondResult.textContent = secondEquivalent.toFixed(2) + "%";
+  elCalculatedResult.textContent = "COP " + fmt(resultCOP.toFixed(2));
 }
 
 async function load() {
@@ -143,6 +206,9 @@ async function load() {
 
     // Calcular precios según la fuente seleccionada
     updateCalculatedPrices();
+
+    // Inicializar etiquetas dinámicas
+    updateLabels();
 
     // Recalcular porcentajes si hay un valor en el input
     calculatePercentages();
