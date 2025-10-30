@@ -133,60 +133,102 @@ function calculatePercentages() {
 
   const source = getSelectedPriceSource();
 
-  // Obtener el valor actual de "Oro (oz)" que corresponde a elGoldGramFinal
-  const oroOzText = elGoldGramFinal.textContent.replace("COP ", "");
+  // Determinar qué valor usar para el cálculo del porcentaje según la fuente seleccionada
+  let baseValueText;
+  if (source === "GoldPrice") {
+    // Para Gold Price, usar el valor de la primera card "Oro (g) Gold Price"
+    baseValueText = elGoldGram.textContent.replace("COP ", "");
+  } else {
+    // Para TRM y KITCO, usar el valor de "Oro (oz)" como antes
+    baseValueText = elGoldGramFinal.textContent.replace("COP ", "");
+  }
 
   // Manejar formato español: 486.320,08 -> 486320.08
   // Reemplazar puntos (separadores de miles) por nada y comas (decimales) por puntos
-  const cleanText = oroOzText.replace(/\./g, "").replace(",", ".");
-  const oroOzValue = parseFloat(cleanText);
+  const cleanText = baseValueText.replace(/\./g, "").replace(",", ".");
+  const baseValue = parseFloat(cleanText);
 
-  if (isNaN(oroOzValue)) {
+  if (isNaN(baseValue)) {
     elFirstResult.textContent = "Error en datos";
     elSecondResult.textContent = "-";
     elCalculatedResult.textContent = "-";
     return;
   }
 
-  // Calcular el resultado en COP aplicando el porcentaje al valor de "Oro (oz)"
-  const resultCOP = (oroOzValue * percentage) / 100;
+  // Calcular el resultado en COP aplicando el porcentaje al valor base
+  const resultCOP = (baseValue * percentage) / 100;
 
-  // Para calcular equivalencias, necesito obtener los valores que tendría "Oro (oz)"
-  // para cada fuente, basándome en los datos actuales
-  let trmOunceValue, goldPriceOunceValue, kitcoOunceValue;
+  // Para calcular equivalencias, necesito los valores que tendría cada fuente cuando está seleccionada
+  // Pero TODOS normalizados a la misma unidad (por onza)
+  let trmBaseValue, goldPriceBaseValue, kitcoBaseValue;
 
   if (currentData) {
     const goldPriceUSD = currentData.computed.goldUsdPerOunce;
     const kitcoUSD = currentData.computed.kitcoUsdPerOunce;
+    const dollarType = getSelectedDollarType();
     const trm = currentData.raw.trm;
     const trmFinal = currentData.computed.dollarFinal;
+    const factor = currentData.computed.ounceToGram;
 
-    // Estos serían los valores de "Oro (oz)" para cada fuente
-    trmOunceValue = (goldPriceUSD * trm) / currentData.computed.ounceToGram;
-    goldPriceOunceValue =
-      (goldPriceUSD * trmFinal) / currentData.computed.ounceToGram;
-    kitcoOunceValue = (kitcoUSD * trmFinal) / currentData.computed.ounceToGram;
+    // Determinar qué tasa de cambio usar según el tipo de dólar seleccionado
+    const exchangeRate = dollarType === "full" ? trm : trmFinal;
+
+    // Calcular los valores base que tendría cada fuente cuando está seleccionada:
+    // TODOS NORMALIZADOS A "POR ONZA" para hacer equivalencias justas
+
+    // TRM: usa Gold Price USD con la tasa de cambio seleccionada, valor por onza
+    trmBaseValue = (goldPriceUSD * exchangeRate) / factor;
+
+    // Gold Price: usa Gold Price USD con la tasa de cambio seleccionada, valor por onza
+    goldPriceBaseValue = (goldPriceUSD * exchangeRate) / factor;
+
+    // KITCO: usa Kitco USD con la tasa de cambio seleccionada, valor por onza
+    kitcoBaseValue = (kitcoUSD * exchangeRate) / factor;
+
+    // Debug para entender los valores
+    console.log("Debug equivalencias:", {
+      source,
+      goldPriceUSD,
+      kitcoUSD,
+      exchangeRate,
+      factor,
+      trmBaseValue,
+      goldPriceBaseValue,
+      kitcoBaseValue,
+      resultCOP,
+    });
   }
 
   let firstEquivalent, secondEquivalent;
 
   if (source === "TRM") {
-    // Input es % TRM - calcular equivalentes para Gold Price y KITCO
-    firstEquivalent = (resultCOP / goldPriceOunceValue) * 100; // % Gold Price
-    secondEquivalent = (resultCOP / kitcoOunceValue) * 100; // % KITCO
+    // Input es % TRM (sobre Oro oz) - calcular qué % equivale en otras fuentes
+    firstEquivalent = (resultCOP / goldPriceBaseValue) * 100; // % equivalente en Gold Price (normalizado a oz)
+    secondEquivalent = (resultCOP / kitcoBaseValue) * 100; // % equivalente en KITCO (sobre Oro oz)
   } else if (source === "GoldPrice") {
-    // Input es % Gold Price - calcular equivalentes para TRM y KITCO
-    firstEquivalent = (resultCOP / trmOunceValue) * 100; // % TRM
-    secondEquivalent = (resultCOP / kitcoOunceValue) * 100; // % KITCO
+    // Input es % Gold Price (sobre Oro g) - resultCOP ya está en escala de gramos
+    // No necesito multiplicar por factor, las equivalencias son directas
+    firstEquivalent = (resultCOP / trmBaseValue) * 100; // % equivalente en TRM (sobre Oro oz)
+    secondEquivalent = (resultCOP / kitcoBaseValue) * 100; // % equivalente en KITCO (sobre Oro oz)
   } else if (source === "KITCO") {
-    // Input es % KITCO - calcular equivalentes para TRM y Gold Price
-    firstEquivalent = (resultCOP / trmOunceValue) * 100; // % TRM
-    secondEquivalent = (resultCOP / goldPriceOunceValue) * 100; // % Gold Price
+    // Input es % KITCO (sobre Oro oz) - calcular qué % equivale en otras fuentes
+    firstEquivalent = (resultCOP / trmBaseValue) * 100; // % equivalente en TRM (sobre Oro oz)
+    secondEquivalent = (resultCOP / goldPriceBaseValue) * 100; // % equivalente en Gold Price (normalizado a oz)
   }
 
-  // Mostrar los resultados
-  elFirstResult.textContent = firstEquivalent.toFixed(2) + "%";
-  elSecondResult.textContent = secondEquivalent.toFixed(2) + "%";
+  // Verificar que los valores sean válidos antes de mostrar
+  if (isNaN(firstEquivalent) || !isFinite(firstEquivalent)) {
+    elFirstResult.textContent = "Error";
+  } else {
+    elFirstResult.textContent = firstEquivalent.toFixed(2) + "%";
+  }
+
+  if (isNaN(secondEquivalent) || !isFinite(secondEquivalent)) {
+    elSecondResult.textContent = "Error";
+  } else {
+    elSecondResult.textContent = secondEquivalent.toFixed(2) + "%";
+  }
+
   elCalculatedResult.textContent = "COP " + fmt(resultCOP.toFixed(2));
 }
 
