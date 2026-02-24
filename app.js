@@ -68,34 +68,52 @@ function updateCalculatedPrices() {
   // Determinar qué tasa de cambio usar según el tipo de dólar seleccionado
   const exchangeRate = dollarType === "full" ? trm : trmFinal;
 
-  let goldCopPerOunce, goldCopPerGramFinal;
-
-  if (source === "TRM") {
-    // TRM: Precio por onza = "Precio onza Gold Price (USD)" × tasa de cambio
-    goldCopPerOunce = goldOunceUsd * exchangeRate;
-  } else if (source === "GoldPrice") {
-    // Gold Price: Precio por onza = "Precio onza Gold Price (USD)" × tasa de cambio
-    goldCopPerOunce = goldOunceUsd * exchangeRate;
-  } else if (source === "KITCO") {
-    // KITCO: Precio por onza = "Precio onza Kitco (USD)" × tasa de cambio
-    goldCopPerOunce = kitcoOunceUsd * exchangeRate;
-  } else {
-    // Fallback a TRM
-    goldCopPerOunce = goldOunceUsd * exchangeRate;
+  // Verificar si tenemos los datos necesarios
+  if (exchangeRate === null) {
+    elGoldOunce.textContent = "Sin TRM";
+    elGoldGramFinal.textContent = "Sin TRM";
+    elGoldOunce.classList.add("error-value");
+    elGoldGramFinal.classList.add("error-value");
+    return;
   }
 
-  // Para todos los casos: Precio Oro/g precio final = Precio por onza ÷ Factor
-  goldCopPerGramFinal = goldCopPerOunce / factor;
+  let goldCopPerOunce = null;
+  let goldCopPerGramFinal = null;
+  let hasError = false;
 
-  // Actualizar las casillas calculadas
-  elGoldOunce.textContent = "COP " + fmt(goldCopPerOunce.toFixed(2));
-  elGoldGramFinal.textContent = "COP " + fmt(goldCopPerGramFinal.toFixed(2));
+  if (source === "TRM" || source === "GoldPrice") {
+    if (goldOunceUsd === null) {
+      elGoldOunce.textContent = "Sin datos GoldPrice";
+      elGoldGramFinal.textContent = "Sin datos";
+      hasError = true;
+    } else {
+      goldCopPerOunce = goldOunceUsd * exchangeRate;
+    }
+  } else if (source === "KITCO") {
+    if (kitcoOunceUsd === null) {
+      elGoldOunce.textContent = "Sin datos Kitco";
+      elGoldGramFinal.textContent = "Sin datos";
+      hasError = true;
+    } else {
+      goldCopPerOunce = kitcoOunceUsd * exchangeRate;
+    }
+  }
 
-  // Actualizar currentData para que los cálculos de porcentaje usen los nuevos valores
-  currentData.computed.goldCopPerOunce = Number(goldCopPerOunce.toFixed(2));
-  currentData.computed.goldCopPerGramFinal = Number(
-    goldCopPerGramFinal.toFixed(2)
-  );
+  if (!hasError && goldCopPerOunce !== null) {
+    goldCopPerGramFinal = goldCopPerOunce / factor;
+    
+    elGoldOunce.textContent = "COP " + fmt(goldCopPerOunce.toFixed(2));
+    elGoldGramFinal.textContent = "COP " + fmt(goldCopPerGramFinal.toFixed(2));
+    elGoldOunce.classList.remove("error-value");
+    elGoldGramFinal.classList.remove("error-value");
+
+    // Actualizar currentData para que los cálculos de porcentaje usen los nuevos valores
+    currentData.computed.goldCopPerOunce = Number(goldCopPerOunce.toFixed(2));
+    currentData.computed.goldCopPerGramFinal = Number(goldCopPerGramFinal.toFixed(2));
+  } else {
+    elGoldOunce.classList.add("error-value");
+    elGoldGramFinal.classList.add("error-value");
+  }
 }
 
 // Cuando cambia la fuente seleccionada, recalcular precios y porcentajes
@@ -250,13 +268,29 @@ async function load() {
     const trm = j.raw.trm;
     const trmFinal = j.computed.dollarFinal;
 
-    elGoldGram.textContent = "COP " + fmt(goldGram.toFixed(2));
-    elGoldOunceUsd.textContent = "USD " + fmt(goldOunceUsd.toFixed(2));
-    elKitcoOunceUsd.textContent = "USD " + fmt(kitcoOunceUsd.toFixed(2));
-    elTrm.textContent = "COP " + fmt(trm.toFixed(2));
-    elTrmFinal.textContent = "COP " + fmt(trmFinal.toFixed(2));
+    // Mostrar valores o "Sin datos" si falla alguna fuente
+    elGoldGram.textContent = goldGram !== null ? "COP " + fmt(goldGram.toFixed(2)) : "Sin datos";
+    elGoldOunceUsd.textContent = goldOunceUsd !== null ? "USD " + fmt(goldOunceUsd.toFixed(2)) : "Sin datos";
+    elKitcoOunceUsd.textContent = kitcoOunceUsd !== null ? "USD " + fmt(kitcoOunceUsd.toFixed(2)) : "Sin datos";
+    elTrm.textContent = trm !== null ? "COP " + fmt(trm.toFixed(2)) : "Sin datos";
+    elTrmFinal.textContent = trmFinal !== null ? "COP " + fmt(trmFinal.toFixed(2)) : "Sin datos";
     elFactor.textContent = gPerOunce;
     elUpdated.textContent = new Date(j.fetchedAt).toLocaleString();
+
+    // Marcar con clase de error las casillas que fallaron
+    elGoldGram.classList.toggle("error-value", goldGram === null);
+    elGoldOunceUsd.classList.toggle("error-value", goldOunceUsd === null);
+    elKitcoOunceUsd.classList.toggle("error-value", kitcoOunceUsd === null);
+    elTrm.classList.toggle("error-value", trm === null);
+    elTrmFinal.classList.toggle("error-value", trmFinal === null);
+
+    // Log de errores de las fuentes
+    if (j.errors) {
+      if (j.errors.goldCop) console.warn("⚠️ GoldPrice COP:", j.errors.goldCop);
+      if (j.errors.goldUsd) console.warn("⚠️ GoldPrice USD:", j.errors.goldUsd);
+      if (j.errors.kitco) console.warn("⚠️ Kitco:", j.errors.kitco);
+      if (j.errors.trm) console.warn("⚠️ TRM:", j.errors.trm);
+    }
 
     // Calcular precios según la fuente seleccionada
     updateCalculatedPrices();
