@@ -41,16 +41,16 @@ function updateLabels() {
 
   if (source === "TRM") {
     elPercentageInputLabel.textContent = "% TRM";
-    elFirstResultLabel.textContent = "% Equivalente Gold Price";
-    elSecondResultLabel.textContent = "% Equivalente KITCO";
+    elFirstResultLabel.textContent = "% Eq Gold Price";
+    elSecondResultLabel.textContent = "% Eq KITCO";
   } else if (source === "GoldPrice") {
     elPercentageInputLabel.textContent = "% Gold Price";
-    elFirstResultLabel.textContent = "% Equivalente TRM";
-    elSecondResultLabel.textContent = "% Equivalente KITCO";
+    elFirstResultLabel.textContent = "% Eq TRM";
+    elSecondResultLabel.textContent = "% Eq KITCO";
   } else if (source === "KITCO") {
     elPercentageInputLabel.textContent = "% KITCO";
-    elFirstResultLabel.textContent = "% Equivalente TRM";
-    elSecondResultLabel.textContent = "% Equivalente Gold Price";
+    elFirstResultLabel.textContent = "% EqTRM";
+    elSecondResultLabel.textContent = "% Eq Gold Price";
   }
 }
 
