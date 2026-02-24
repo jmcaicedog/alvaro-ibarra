@@ -49,7 +49,7 @@ function updateLabels() {
     elSecondResultLabel.textContent = "% Eq KITCO";
   } else if (source === "KITCO") {
     elPercentageInputLabel.textContent = "% KITCO";
-    elFirstResultLabel.textContent = "% EqTRM";
+    elFirstResultLabel.textContent = "% Eq TRM";
     elSecondResultLabel.textContent = "% Eq Gold Price";
   }
 }
