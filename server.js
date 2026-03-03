@@ -14,7 +14,14 @@ async function fetchGoldPriceCOPPerGram() {
   const apiUrl = "https://data-asg.goldprice.org/dbXRates/COP";
   const apiResponse = await fetch(apiUrl, {
     headers: {
-      Origin: "https://goldprice.org",
+      "Accept": "*/*",
+      "Accept-Language": "es-CO,es;q=0.9",
+      "Origin": "https://goldprice.org",
+      "Referer": "https://goldprice.org/",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-site",
+      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
     },
   });
 
@@ -82,7 +89,14 @@ async function fetchGoldPriceUSDPerOunce() {
   const apiUrl = "https://data-asg.goldprice.org/dbXRates/USD";
   const apiResponse = await fetch(apiUrl, {
     headers: {
-      Origin: "https://goldprice.org",
+      "Accept": "*/*",
+      "Accept-Language": "es-CO,es;q=0.9",
+      "Origin": "https://goldprice.org",
+      "Referer": "https://goldprice.org/",
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-site",
+      "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
     },
   });
 
